@@ -1,0 +1,51 @@
+{
+    "name": "websocket-method",
+    "version": "0.0.1",
+    "description": "Websocket server/client whith methods protocol",
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/samurayii/websocket-method.git"
+    },
+    "keywords": [
+        "websocket"
+    ],
+    "author": "Nuzhnov A.A.",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/samurayii/websocket-method/issues"
+    },
+    "homepage": "https://github.com/samurayii/websocket-method.git#readme",
+    "scripts": {
+        "test": "mocha",
+        "test-grep": "mocha --grep "
+    },
+    "devDependencies": {
+        "chalk": "^4.0.0",
+        "clone": "^2.1.2",
+        "chai": "^4.2.0",
+        "mocha": "^7.2.0"
+    },
+    "mocha": {
+        "diff": true,
+        "extension": [
+            "js"
+        ],
+        "opts": false,
+        "reporter": "spec",
+        "slow": 75,
+        "timeout": 2000,
+        "ui": "bdd",
+        "spec": [
+            "tests/**/*.spec.js"
+        ]
+    },
+    "dependencies": {
+        "uuid": "^8.1.0",
+        "ws": "^7.3.0"
+    },
+    "optionalDependencies": {
+        "bufferutil": "^4.0.1",
+        "utf-8-validate": "^5.0.2"
+    }
+}
