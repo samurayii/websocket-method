@@ -2,6 +2,8 @@
 
 Json websocket server/client.
 
+install: `npm i websocket-method`
+
 ### Example
 
 ```js
