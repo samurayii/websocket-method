@@ -71,8 +71,8 @@ export class WebsocketMethodServerClass extends EventEmitter implements IWebsock
             this.emit("open", connection_method);
         });
 
-        this._server.on("authorization", (type_auth: string, auth_string: string, callback) => {
-            this.emit("authorization", type_auth, auth_string, callback);
+        this._server.on("authorization", (auth_type: string, auth_string: string, callback) => {
+            this.emit("authorization", auth_type, auth_string, callback);
         });
 
     }
