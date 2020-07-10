@@ -135,7 +135,7 @@ options:
 - **heartbeat: 30** -> heartbeat connection in seconds
 - **ttl: 90** -> ttl connection in seconds
 - **max_payload: "100kb"** -> maxPayload connection (kb,b or mb)
-- **headers: {}** -> headers object
+- **headers: {}** -> http headers object
 - **auth: {}** -> authorization object
     - **login** -> login to server (Basic)
     - **password** -> password to server (Basic)
