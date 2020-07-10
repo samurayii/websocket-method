@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { WebsocketMethodServerClass } from "../../index";
-import { WebsocketMethodClientClass } from "../../index";
+import { WebsocketMethodServerClass } from "../../src/index";
+import { WebsocketMethodClientClass } from "../../src/index";
 
 describe("Index", function () {
 

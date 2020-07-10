@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import { WebsocketMethodServerClass } from "../../lib/server/websocket-method-server-class";
-import { IWebsocketServerConfig } from "../../lib/interfaces/websocket-server-config";
-import { IWebsocketMethodServerClass } from "../../lib/interfaces/websocket-method-server-class";
-import { IWebsocketClientConfig } from "../../lib/interfaces/websocket-client-config";
-import { WebsocketMethodClientClass } from "../../lib/client/websocket-method-client-class";
+import { WebsocketMethodServerClass } from "../../src/lib/server/websocket-method-server-class";
+import { IWebsocketServerConfig } from "../../src/lib/interfaces/websocket-server-config";
+import { IWebsocketMethodServerClass } from "../../src/lib/interfaces/websocket-method-server-class";
+import { IWebsocketClientConfig } from "../../src/lib/interfaces/websocket-client-config";
+import { WebsocketMethodClientClass } from "../../src/lib/client/websocket-method-client-class";
 
 describe("WebsocketMethodServerClass<->WebsocketMethodClientClass", function () {
 

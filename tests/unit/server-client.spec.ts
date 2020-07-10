@@ -1,10 +1,10 @@
 import { expect } from "chai";
-import { WebsocketServerClass } from "../../lib/server/websocket-server-class";
-import { WebsocketClientClass } from "../../lib/client/websocket-client-class";
-import { IWebsocketServerConfig } from "../../lib/interfaces/websocket-server-config";
-import { IWebsocketClientConfig } from "../../lib/interfaces/websocket-client-config";
-import { IWebsocketServerClass } from "../../lib/interfaces/websocket-server-class";
-import { IConnectionClass } from "../../lib/interfaces/connection-class";
+import { WebsocketServerClass } from "../../src/lib/server/websocket-server-class";
+import { WebsocketClientClass } from "../../src/lib/client/websocket-client-class";
+import { IWebsocketServerConfig } from "../../src/lib/interfaces/websocket-server-config";
+import { IWebsocketClientConfig } from "../../src/lib/interfaces/websocket-client-config";
+import { IWebsocketServerClass } from "../../src/lib/interfaces/websocket-server-class";
+import { IConnectionClass } from "../../src/lib/interfaces/connection-class";
 import { resolve } from "path";
 
 describe("WebsocketServerClass<->WebsocketClientClass", function () {
