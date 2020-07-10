@@ -1,4 +1,2 @@
-module.exports = {
-    server: require("./lib/websocket-method-server-class"),
-    client: require("./lib/websocket-method-client-class")
-};
+export { WebsocketMethodServerClass } from "./lib/server/websocket-method-server-class";
+export { WebsocketMethodClientClass } from "./lib/client/websocket-method-client-class";

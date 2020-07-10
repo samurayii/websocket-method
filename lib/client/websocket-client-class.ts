@@ -1,10 +1,20 @@
-const EventEmitter = require("events");
-const WebSocket = require("ws");
-const convertMaxPayload = require("./convert-max-payload");
+import { EventEmitter } from "events";
+import * as WebSocket from "ws";
+import { convertMaxPayload } from "../convert-max-payload";
+import { IWebsocketClientClass } from "../interfaces/websocket-client-class";
+import { IWebsocketClientConfig } from "../interfaces/websocket-client-config";
+import { IWebsocketClientInfo } from "../interfaces/websocket-client-info";
 
-module.exports = class WebsocketClientClass extends EventEmitter {
+export class WebsocketClientClass extends EventEmitter implements IWebsocketClientClass {
 
-    constructor (config) {
+    private _status: string
+    private _last_pong: number
+    private _ws_client: WebSocket
+    private _ping_id_interval: ReturnType<typeof setTimeout>
+    private _reconnect_id_interval: ReturnType<typeof setTimeout>
+    private readonly _config: IWebsocketClientConfig
+
+    constructor (config: IWebsocketClientConfig) {
 
         super();
 
@@ -16,36 +26,37 @@ module.exports = class WebsocketClientClass extends EventEmitter {
             max_payload: "100kb",
             headers: {},
             auth: {},
+            reject_unauthorized: true,
             ...config
         };
 
-        if (this._config.auth.login && this._config.auth.password) {
+        if (this._config.auth.login !== undefined && this._config.auth.password !== undefined) {
             this._config.headers["Authorization"] = `Basic ${Buffer.from(`${this._config.auth.login}:${this._config.auth.password}`).toString("base64")}`;
         }
 
-        if (this._config.auth.token) {
+        if (this._config.auth.token !== undefined) {
             this._config.headers["Authorization"] = `Bearer ${this._config.auth.token}`;
         }
 
-        this._config.max_payload = convertMaxPayload(this._config.max_payload);
-
-        this._status = "closed";
+        this._status = "close";
         this._last_pong = 0;
 
     }
 
-    get status () {
+    get status (): string {
         return this._status;
     }
 
-    _connect () {
+    _connect (): Promise<void> {
 
         return new Promise( (resolve, reject) => {
 
             this._status = "connecting";
     
             this._ws_client = new WebSocket(this._config.url, [], {
-                headers: this._config.headers
+                headers: this._config.headers,
+                maxPayload: convertMaxPayload(this._config.max_payload),
+                rejectUnauthorized: this._config.reject_unauthorized
             });
 
             this._ws_client.once("open", () => {
@@ -56,8 +67,8 @@ module.exports = class WebsocketClientClass extends EventEmitter {
                 this._ws_client.removeAllListeners("error");
 
                 this._ws_client.on("error", (error) => {
-                    this.emit("error", error);
                     this._reconnect();
+                    this.emit("error", error);
                 });
 
                 this._ws_client.on("message", (message) => {
@@ -69,8 +80,8 @@ module.exports = class WebsocketClientClass extends EventEmitter {
                 });
 
                 this._ws_client.on("close", (code, reason) => {
-                    this.emit("close", code, reason);
                     this._reconnect();
+                    this.emit("close", code, reason);
                 });
 
                 this._ping();
@@ -82,7 +93,7 @@ module.exports = class WebsocketClientClass extends EventEmitter {
             });
 
             this._ws_client.once("error", (error) => {
-                this._status = "closed";
+                this._status = "close";
                 reject(error);
             });
 
@@ -90,11 +101,11 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
     }
 
-    connect () {
+    connect (): Promise<void> {
 
         return new Promise( (resolve, reject) => {
 
-            if (this._status === "closed") {
+            if (this._status === "close") {
 
                 this._connect().then( () => {
                     resolve();
@@ -110,26 +121,25 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
     }
 
-    close () {
+    close (): Promise<void> {
 
         return new Promise( (resolve) => {
 
             clearTimeout(this._ping_id_interval);
             clearTimeout(this._reconnect_id_interval);
 
-            this._ws_client.removeAllListeners("error");
-            this._ws_client.removeAllListeners("close");
+            this._ws_client.removeAllListeners();
 
             if (this._status === "open" || this._status === "reconnecting") {
 
                 this._ws_client.close();
 
-                this._status = "closed";
+                this._status = "close";
 
                 resolve();
 
             } else {
-                this._status = "closed";
+                this._status = "close";
                 resolve();
             }
 
@@ -137,7 +147,7 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
     }
 
-    send (message) {
+    send (message: unknown): Promise<void> {
 
         return new Promise( (resolve, reject) => {
 
@@ -155,11 +165,13 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
     }
 
-    _reconnect() {
+    _reconnect(): void {
 
         this._status = "reconnecting";
 
         this.emit("reconnecting");
+
+        clearTimeout(this._reconnect_id_interval);
 
         this._reconnect_id_interval = setTimeout( () => {
 
@@ -175,11 +187,13 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
     }
 
-    _ping () {
+    _ping (): void {
+
+        clearTimeout(this._ping_id_interval);
 
         this._ping_id_interval = setTimeout( () => {
 
-            let diff = Date.now() - this._last_pong;
+            const diff = Date.now() - this._last_pong;
 
             if (this._status === "open" || this._status === "connecting") {
                 
@@ -187,13 +201,7 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
                     try {
 
-                        this._ws_client.removeAllListeners("error");
-                        this._ws_client.removeAllListeners("close");
-                        this._ws_client.removeAllListeners("message");
-                        this._ws_client.removeAllListeners("pong");
-                        this._ws_client.removeAllListeners("open");
-                    
-                        this._ws_client.terminate();
+                        this.terminate();
 
                     } catch (error) {
                         this.emit("error", error);
@@ -215,4 +223,23 @@ module.exports = class WebsocketClientClass extends EventEmitter {
 
     }
 
-};
+    terminate (): void {
+        clearTimeout(this._ping_id_interval);
+        clearTimeout(this._reconnect_id_interval);
+        this._ws_client.removeAllListeners();  
+        this._ws_client.terminate();
+    }
+
+    get info (): IWebsocketClientInfo {
+        return {
+            url: this._config.url,
+            reconnect_interval: this._config.reconnect_interval,
+            heartbeat: this._config.heartbeat,
+            ttl: this._config.ttl,
+            max_payload: this._config.max_payload,
+            status: this._status,
+            last_pong: this._last_pong
+        };
+    }
+
+}

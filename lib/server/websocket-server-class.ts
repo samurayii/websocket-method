@@ -1,15 +1,28 @@
-const EventEmitter = require("events");
-const fs = require("fs");
-const path = require("path");
-const http = require("http");
-const https = require("https");
-const WebSocket = require("ws");
-const ConnectionClass = require("./connection-class");
-const convertMaxPayload = require("./convert-max-payload");
+import { EventEmitter } from "events";
+import * as WebSocket from "ws";
+import * as fs from "fs";
+import * as path from "path";
+import * as http from "http";
+import * as https from "https";
+import { ConnectionClass } from "./connection-class";
+import { convertMaxPayload } from "../convert-max-payload";
+import { IConnectionClass } from "../interfaces/connection-class";
+import { IWebsocketServerConfig } from "../interfaces/websocket-server-config";
+import { IWebsocketServerClass } from "../interfaces/websocket-server-class";
+import { IWebsocketServerInfo } from "../interfaces/websocket-server-info";
 
-module.exports = class WebsocketServerClass extends EventEmitter {
+export class WebsocketServerClass extends EventEmitter implements IWebsocketServerClass {
 
-    constructor (config) {
+    private _listen_flag: boolean
+    private _connections_list: {
+        [key: string]: IConnectionClass
+    }
+    private _ws_server: WebSocket.Server
+    private _http_server: http.Server
+    private _server: http.Server
+    private _config: IWebsocketServerConfig
+
+    constructor (config: IWebsocketServerConfig) {
 
         super();
 
@@ -22,6 +35,7 @@ module.exports = class WebsocketServerClass extends EventEmitter {
             prefix: "/",
             protocol: "ws",
             heartbeat: 30,
+            ttl: 90,
             max_payload: "100kb",
             cert: "cert.pem",
             key: "key.pem",
@@ -29,14 +43,8 @@ module.exports = class WebsocketServerClass extends EventEmitter {
             ...config
         };
 
-        this._config.max_payload = convertMaxPayload(this._config.max_payload);
-
-        if (this._config.host === "*" || this._config.host === "0.0.0.0") {
-            this._config.host = undefined;
-        }
-
         const server_settings = {
-            maxPayload: this._config.max_payload,
+            maxPayload: convertMaxPayload(this._config.max_payload),
             perMessageDeflate: false,
             clientTracking: true,
             noServer: true,
@@ -69,15 +77,21 @@ module.exports = class WebsocketServerClass extends EventEmitter {
 
     }
 
-    listen () {
+    listen (): Promise<void> {
 
         return new Promise( (resolve, reject) => {
 
             if (this._listen_flag === false) {
 
                 this._listen_flag = true;
+
+                let host;
+
+                if (this._config.host !== "*" && this._config.host !== "0.0.0.0") {
+                    host = this._config.host;
+                }
     
-                this._server = this._http_server.listen(this._config.port, this._config.host, () => {
+                this._server = this._http_server.listen(this._config.port, host, () => {
 
                     this._server.removeAllListeners("error");
 
@@ -87,18 +101,20 @@ module.exports = class WebsocketServerClass extends EventEmitter {
 
                     this._ws_server.on("connection", (ws) => {
 
-                        const connection = new ConnectionClass(ws);
+                        const connection: IConnectionClass = new ConnectionClass(ws, {
+                            heartbeat: this._config.heartbeat,
+                            ttl: this._config.ttl
+                        });
 
                         this._connections_list[connection.id] = connection;
                         
                         connection.on("message", (message) => {
-console.log(`Received message ${message} from user ${connection.id}`);
                             this.emit("message", message, connection);
                         });
 
                         connection.on("close", () => {
-console.log(`close connection ${connection.id}`);
                             delete this._connections_list[connection.id];
+                            connection.terminate();
                             this.emit("close", connection);
                         });
 
@@ -130,9 +146,9 @@ console.log(`close connection ${connection.id}`);
                                 type_auth = type_auth[0];
                             }
             
-                            let auth_string = request.headers.authorization.replace(/(^Basic|^Bearer)/gi, "").trim();
+                            const auth_string = request.headers.authorization.replace(/(^Basic|^Bearer)/gi, "").trim();
             
-                            this.emit("authorization", type_auth, auth_string, (result) => {
+                            this.emit("authorization", type_auth, auth_string, (result: boolean) => {
             
                                 if (result === true) {
                                     this._ws_server.handleUpgrade(request, socket, head, (ws) => {
@@ -169,7 +185,7 @@ console.log(`close connection ${connection.id}`);
 
     }
 
-    close () {
+    close (): Promise<void> {
 
         return new Promise( (resolve, reject) => {
 
@@ -177,13 +193,27 @@ console.log(`close connection ${connection.id}`);
 
                 this._listen_flag = false;
 
-                this._server.close(() => {
-                    this._server.removeAllListeners("error");
-                    resolve();
-                });
+                const connections_closer = [];
 
-                this._server.once("error", (error) => {
-                    reject(error);
+                for (const connection_id in this._connections_list) {
+
+                    const connection = this._connections_list[connection_id];
+                    connections_closer.push(connection.close());
+                }
+
+                this._connections_list = {};
+
+                Promise.all(connections_closer).finally( () => {
+
+                    this._server.once("error", (error) => {
+                        reject(error);
+                    });
+
+                    this._server.close(() => {
+                        this._server.removeAllListeners("error");
+                        resolve();
+                    });
+
                 });
 
             } else {
@@ -194,4 +224,75 @@ console.log(`close connection ${connection.id}`);
 
     }
     
-};
+    send (message: unknown, connection_id?: string): Promise<void> {
+
+        return new Promise( (resolve, reject) => {
+
+            if (connection_id === undefined) {
+
+                if (Object.keys(this._connections_list).length > 0) {
+
+                    const connections_sender = [];
+    
+                    for (const connection_id in this._connections_list) {
+                        const connection = this._connections_list[connection_id];
+                        connections_sender.push(connection.send(message));
+                    }
+    
+                    Promise.all(connections_sender).then( () => {
+                        resolve();
+                    }).catch( (error) => {
+                        reject(error);
+                    });
+    
+                } else {
+                    resolve();
+                }
+
+            } else {
+
+                const connection: IConnectionClass = this.getConnection(connection_id);
+
+                if (connection === undefined) {
+                    resolve();
+                } else {
+
+                    connection.send(message).then( () => {
+                        resolve();
+                    }).catch( (error) => {
+                        reject(error);
+                    });
+                }
+
+            }
+
+        });
+
+    }
+
+    getConnection (connection_id: string): IConnectionClass {
+        if (this._connections_list[connection_id] === undefined) {
+            return;
+        }
+        return this._connections_list[connection_id];
+    }
+
+    getConnectionsList (): string[] {
+        return Object.keys(this._connections_list);
+    }
+
+    get info (): IWebsocketServerInfo {
+        return {
+            host: this._config.host,
+            port: this._config.port,
+            prefix: this._config.prefix,
+            protocol: this._config.protocol,
+            heartbeat: this._config.heartbeat,
+            ttl: this._config.ttl,
+            max_payload: this._config.max_payload,
+            auth: this._config.auth,
+            connections: Object.keys(this._connections_list).length
+        };
+    }
+
+}

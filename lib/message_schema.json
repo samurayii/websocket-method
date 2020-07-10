@@ -1,0 +1,26 @@
+{
+    "type": "object",
+    "properties": {
+        "method": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+        },
+        "headers": {
+            "type": "object",
+            "patternProperties": {
+                "^[A-Za-z_]{1}[-A-Za-z0-9_]{1,31}$": { 
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                }
+            }
+        },
+        "body": {}
+    },
+    "required": [
+        "method",
+        "headers",
+        "body"
+    ]
+}
