@@ -17,9 +17,9 @@
     },
     "homepage": "https://github.com/samurayii/websocket-method.git#readme",
     "scripts": {
-        "build": "rimraf ./dist && npm run lint && tsc && json-key-remover",
+        "build": "rimraf ./lib && rimraf ./index.js && npm run lint && tsc",
         "test": "mocha -r ts-node/register --config ./tests/mocha.unit.config.json",
-        "lint": "eslint \"./lib/**/*.{js,ts}\" --quiet --fix && tsc --noEmit",
+        "lint": "eslint \"./src/**/*.{js,ts}\" --quiet --fix && tsc --noEmit",
         "lint:tests": "eslint \"./tests/**/*.{js,ts}\" --quiet --fix && tsc --noEmit"
     },
     "devDependencies": {

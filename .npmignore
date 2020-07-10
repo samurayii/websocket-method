@@ -7,3 +7,4 @@ index.ts
 .eslintignore
 .eslintrc
 tsconfig.json
+src
