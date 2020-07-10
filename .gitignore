@@ -9,7 +9,8 @@ Thumbs.db
 .vscode
 package-lock.json
 lib/**/*.js
-lib/**/*.json
+lib/message_schema.json
 lib/**/*.d.ts
 !src/lib/**/*
+index.d.ts
 index.js
