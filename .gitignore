@@ -1,7 +1,5 @@
 .vscode
 node_modules
-secret
-secret.config.json
 .cache
 dist
 .DS_Store
